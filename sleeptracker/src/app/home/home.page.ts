@@ -5,7 +5,7 @@ import {
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonList, IonListHeader, IonItem, IonLabel, IonNote,
   IonButton, IonDatetime, IonDatetimeButton, IonModal, IonText,
-  IonSegment, IonSegmentButton,
+  IonSegment, IonSegmentButton, IonSpinner,
   ToastController, AlertController,
 } from '@ionic/angular/standalone';
 import { SleepService } from '../services/sleep.service';
@@ -27,13 +27,14 @@ function toLocalIso(d: Date): string {
     IonCard, IonCardHeader, IonCardTitle, IonCardContent,
     IonList, IonListHeader, IonItem, IonLabel, IonNote,
     IonButton, IonDatetime, IonDatetimeButton, IonModal, IonText,
-    IonSegment, IonSegmentButton,
+    IonSegment, IonSegmentButton, IonSpinner,
   ],
 })
 export class HomePage {
   bedtime = '';
   wakeTime = '';
   saving = false;
+  loading = true;
   rating: number | null = null;
   sleepinessTime = toLocalIso(new Date());
   readonly scale = [1, 2, 3, 4, 5, 6, 7];
@@ -46,6 +47,12 @@ export class HomePage {
   ) {
     this.resetNight();
   }
+
+	/* Loads saved entries before showing the history. */
+	async ngOnInit() {
+		await this.sleepService.init();
+		this.loading = false;
+	}
 
 	/* Returns a validation message for the sleepiness form, or null if valid. */
 	get sleepinessError(): string | null {
@@ -60,12 +67,11 @@ export class HomePage {
 		this.saving = true;
 		try {
 			const when = new Date(this.sleepinessTime);
-			this.sleepService.logSleepinessData(new StanfordSleepinessData(this.rating!, when));
 			const message = `Logged ${this.rating} at ${when.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+			const saved = await this.sleepService.logSleepinessData(new StanfordSleepinessData(this.rating!, when)).then(() => true, () => false);
 			this.rating = null;
 			this.sleepinessTime = toLocalIso(new Date());
-			const toast = await this.toastCtrl.create({ message, duration: 2000 });
-			await toast.present();
+			await this.showToast(message, saved);
 		} finally {
 			this.saving = false;
 		}
@@ -120,14 +126,21 @@ export class HomePage {
 			const duplicate = this.overnight.some(n => n.sleepEnd.toDateString() === wake.toDateString());
 			if (duplicate && !(await this.confirmDuplicate(wake))) return;
 
-			this.sleepService.logOvernightData(new OvernightSleepData(new Date(this.bedtime), wake));
 			const label = this.sleepLabel;
+			const saved = await this.sleepService.logOvernightData(new OvernightSleepData(new Date(this.bedtime), wake)).then(() => true, () => false);
 			this.resetNight();
-			const toast = await this.toastCtrl.create({ message: `Night saved: ${label}`, duration: 2000 });
-			await toast.present();
+			await this.showToast(`Night saved: ${label}`, saved);
 		} finally {
 			this.saving = false;
 		}
+	}
+
+	/* Shows the success message, or a danger toast if the entry couldn't be written to storage. */
+	private async showToast(message: string, saved: boolean) {
+		const toast = await this.toastCtrl.create(saved
+			? { message, duration: 2000 }
+			: { message: "Couldn't save to this device — entry kept until you close the app", duration: 4000, color: 'danger' });
+		await toast.present();
 	}
 
 	/* Asks the user whether to save a second night ending on the same day. */
