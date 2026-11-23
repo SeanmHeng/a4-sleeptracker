@@ -48,7 +48,32 @@
     <ion-card-header>
       <ion-card-title>How sleepy are you?</ion-card-title>
     </ion-card-header>
-    <ion-card-content>meow</ion-card-content>
+    <ion-card-content>
+      <ion-segment [value]="rating" (ionChange)="rating = $any($event.detail.value) ? +$any($event.detail.value) : null">
+        @for (n of scale; track n) {
+          <ion-segment-button [value]="n" style="min-height: 48px">{{ n }}</ion-segment-button>
+        }
+      </ion-segment>
+      <p>{{ rating ? rating + ' · ' + descriptions[rating] : 'Tap a number' }}</p>
+
+      <ion-item>
+        <ion-label>Felt this at</ion-label>
+        <ion-datetime-button datetime="sleepinessTime"></ion-datetime-button>
+      </ion-item>
+      <ion-modal [keepContentsMounted]="true">
+        <ng-template>
+          <ion-datetime id="sleepinessTime" presentation="date-time"
+            [value]="sleepinessTime" (ionChange)="sleepinessTime = $any($event.detail.value)"></ion-datetime>
+        </ng-template>
+      </ion-modal>
+
+      @if (rating && sleepinessError) {
+        <p><ion-text color="danger">{{ sleepinessError }}</ion-text></p>
+      }
+      <ion-button expand="block" [disabled]="!!sleepinessError || saving" (click)="saveSleepiness()">
+        Save rating
+      </ion-button>
+    </ion-card-content>
   </ion-card>
 
   <ion-list>
@@ -78,5 +103,14 @@
         <ion-note slot="end">No sleepiness logged yet</ion-note>
       }
     </ion-item>
+    @for (s of sleepiness; track s.id) {
+      <ion-item>
+        <ion-label>
+          <h3>{{ s.dateString() }}</h3>
+          <p>{{ s.summaryString() }}</p>
+        </ion-label>
+        <ion-note slot="end">{{ s.loggedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) }}</ion-note>
+      </ion-item>
+    }
   </ion-list>
 </ion-content>

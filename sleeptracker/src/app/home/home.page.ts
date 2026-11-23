@@ -5,12 +5,14 @@ import {
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonList, IonListHeader, IonItem, IonLabel, IonNote,
   IonButton, IonDatetime, IonDatetimeButton, IonModal, IonText,
+  IonSegment, IonSegmentButton,
   ToastController, AlertController,
 } from '@ionic/angular/standalone';
 import { SleepService } from '../services/sleep.service';
 import { OvernightSleepData } from '../data/overnight-sleep-data';
+import { StanfordSleepinessData } from '../data/stanford-sleepiness-data';
 
-/* ion-datetime wants local time without a zone; toISOString() alone would shift by the UTC offset. */
+/* Formats a Date as a local-time ISO string without a zone. */
 function toLocalIso(d: Date): string {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
 }
@@ -25,12 +27,17 @@ function toLocalIso(d: Date): string {
     IonCard, IonCardHeader, IonCardTitle, IonCardContent,
     IonList, IonListHeader, IonItem, IonLabel, IonNote,
     IonButton, IonDatetime, IonDatetimeButton, IonModal, IonText,
+    IonSegment, IonSegmentButton,
   ],
 })
 export class HomePage {
   bedtime = '';
   wakeTime = '';
   saving = false;
+  rating: number | null = null;
+  sleepinessTime = toLocalIso(new Date());
+  readonly scale = [1, 2, 3, 4, 5, 6, 7];
+  readonly descriptions = StanfordSleepinessData.ScaleValues;
 
   constructor(
     public sleepService: SleepService,
@@ -40,16 +47,41 @@ export class HomePage {
     this.resetNight();
   }
 
-	/* Ionic doesn't allow bindings to static variables, so these getters can be used instead. */
+	/* Returns a validation message for the sleepiness form, or null if valid. */
+	get sleepinessError(): string | null {
+		if (!Number.isInteger(this.rating) || this.rating! < 1 || this.rating! > 7) return 'Pick a rating';
+		if (!this.sleepinessTime || new Date(this.sleepinessTime).getTime() > Date.now() + 60000) return "Time can't be in the future";
+		return null;
+	}
+
+	/* Saves the selected rating, resets the form and shows a toast. */
+	async saveSleepiness() {
+		if (this.saving || this.sleepinessError) return;
+		this.saving = true;
+		try {
+			const when = new Date(this.sleepinessTime);
+			this.sleepService.logSleepinessData(new StanfordSleepinessData(this.rating!, when));
+			const message = `Logged ${this.rating} at ${when.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+			this.rating = null;
+			this.sleepinessTime = toLocalIso(new Date());
+			const toast = await this.toastCtrl.create({ message, duration: 2000 });
+			await toast.present();
+		} finally {
+			this.saving = false;
+		}
+	}
+
+	/* All logged overnight sleep entries. */
 	get overnight() {
 		return SleepService.AllOvernightData;
 	}
 
+	/* All logged sleepiness entries. */
 	get sleepiness() {
 		return SleepService.AllSleepinessData;
 	}
 
-	/* Defaults: last night 11 pm -> this morning 7 am (or now, if it's earlier than 7 am). */
+	/* Resets bedtime/wake time to last night 11 pm and this morning 7 am (or now, if earlier). */
 	resetNight() {
 		const bed = new Date();
 		bed.setDate(bed.getDate() - 1);
@@ -60,14 +92,17 @@ export class HomePage {
 		this.wakeTime = toLocalIso(wake > new Date() ? new Date() : wake);
 	}
 
+	/* Minutes between bedtime and wake time. */
 	get sleepMinutes(): number {
 		return Math.round((new Date(this.wakeTime).getTime() - new Date(this.bedtime).getTime()) / 60000);
 	}
 
+	/* Sleep duration formatted as "H h M min". */
 	get sleepLabel(): string {
 		return `${Math.floor(this.sleepMinutes / 60)} h ${this.sleepMinutes % 60} min`;
 	}
 
+	/* Returns a validation message for the overnight form, or null if valid. */
 	get overnightError(): string | null {
 		if (!this.bedtime || !this.wakeTime) return 'Pick both times';
 		if (this.sleepMinutes <= 0) return 'Wake time must be after bedtime';
@@ -76,6 +111,7 @@ export class HomePage {
 		return null;
 	}
 
+	/* Saves the overnight entry (confirming duplicates), resets the form and shows a toast. */
 	async saveNight() {
 		if (this.saving || this.overnightError) return;
 		this.saving = true;
@@ -94,6 +130,7 @@ export class HomePage {
 		}
 	}
 
+	/* Asks the user whether to save a second night ending on the same day. */
 	private async confirmDuplicate(wake: Date): Promise<boolean> {
 		const day = wake.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
 		const alert = await this.alertCtrl.create({
