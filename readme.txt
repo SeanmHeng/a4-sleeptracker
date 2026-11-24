@@ -1,4 +1,5 @@
 --Readme document for Sean Heng, smheng@uci.edu, 93622124--
+Assignment Group Number: A4 Group 56
 
 1. How many assignment points do you believe you completed (replace the *'s with your numbers)?
 
