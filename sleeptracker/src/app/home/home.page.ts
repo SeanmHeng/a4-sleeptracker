@@ -5,17 +5,16 @@ import {
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonList, IonListHeader, IonItem, IonLabel, IonNote,
   IonButton, IonDatetime, IonDatetimeButton, IonModal, IonText,
-  IonSegment, IonSegmentButton, IonSpinner,
+  IonRange, IonSpinner,
+  IonItemSliding, IonItemOptions, IonItemOption,
   ToastController, AlertController,
 } from '@ionic/angular/standalone';
 import { SleepService } from '../services/sleep.service';
+import { SleepData } from '../data/sleep-data';
 import { OvernightSleepData } from '../data/overnight-sleep-data';
 import { StanfordSleepinessData } from '../data/stanford-sleepiness-data';
-
-/* Formats a Date as a local-time ISO string without a zone. */
-function toLocalIso(d: Date): string {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
-}
+import { SleepDialComponent } from '../sleep-dial/sleep-dial.component';
+import { toLocalIso } from '../util/time';
 
 @Component({
   selector: 'app-home',
@@ -27,7 +26,9 @@ function toLocalIso(d: Date): string {
     IonCard, IonCardHeader, IonCardTitle, IonCardContent,
     IonList, IonListHeader, IonItem, IonLabel, IonNote,
     IonButton, IonDatetime, IonDatetimeButton, IonModal, IonText,
-    IonSegment, IonSegmentButton, IonSpinner,
+    IonRange, IonSpinner,
+    IonItemSliding, IonItemOptions, IonItemOption,
+    SleepDialComponent,
   ],
 })
 export class HomePage {
@@ -37,7 +38,8 @@ export class HomePage {
   loading = true;
   rating: number | null = null;
   sleepinessTime = toLocalIso(new Date());
-  readonly scale = [1, 2, 3, 4, 5, 6, 7];
+  readonly emojis = ['', '😃', '😊', '🙂', '😐', '🥱', '😪', '😴'];
+  readonly colors = ['', '#4ade80', '#a3e635', '#facc15', '#fbbf24', '#fb923c', '#f87171', '#ef4444'];
   readonly descriptions = StanfordSleepinessData.ScaleValues;
 
   constructor(
@@ -52,6 +54,44 @@ export class HomePage {
 	async ngOnInit() {
 		await this.sleepService.init();
 		this.loading = false;
+	}
+
+	/* Text for the summary card: latest night and latest sleepiness rating, or null when nothing is logged. */
+	get summary(): string | null {
+		const night = this.overnight.reduce<OvernightSleepData | null>((a, n) => (!a || n.sleepEnd > a.sleepEnd ? n : a), null);
+		const sleepy = this.sleepiness.reduce<StanfordSleepinessData | null>((a, s) => (!a || s.loggedAt > a.loggedAt ? s : a), null);
+		const parts: string[] = [];
+		if (night) {
+			const mins = Math.round((night.sleepEnd.getTime() - night.sleepStart.getTime()) / 60000);
+			parts.push(`Last night ${Math.floor(mins / 60)} h ${mins % 60} min`);
+		}
+		if (sleepy) parts.push(`Latest sleepiness ${sleepy.loggedValue} (${sleepy.loggedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})`);
+		return parts.length ? parts.join(' · ') : null;
+	}
+
+	/* CSS class for a rating badge, e.g. "r4". */
+	badge(value: number): string {
+		return `badge r${value}`;
+	}
+
+	/* Deletes an entry and shows an Undo toast; a failed save shows an error toast instead. */
+	async deleteEntry(entry: SleepData, sliding?: IonItemSliding) {
+		await sliding?.close();
+		try {
+			await this.sleepService.deleteEntry(entry);
+		} catch {
+			await this.showToast('', false);
+			return;
+		}
+		const toast = await this.toastCtrl.create({
+			message: 'Entry deleted',
+			duration: 5000,
+			buttons: [{
+				text: 'Undo',
+				handler: () => { this.sleepService.restoreEntry(entry).catch(() => this.showToast('', false)); },
+			}],
+		});
+		await toast.present();
 	}
 
 	/* Returns a validation message for the sleepiness form, or null if valid. */

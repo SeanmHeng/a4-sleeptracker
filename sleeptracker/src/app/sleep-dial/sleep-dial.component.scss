@@ -1,0 +1,18 @@
+:host { display: block; }
+
+.dial {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.track { fill: none; stroke: rgba(var(--ion-text-color-rgb), 0.12); stroke-width: 22; }
+.arc { fill: none; stroke: var(--ion-color-primary); stroke-width: 22; stroke-linecap: round; }
+.label { font-size: 10px; font-weight: 600; fill: var(--ion-text-color); }
+
+.handle { cursor: grab; }
+.handle circle { fill: var(--ion-background-color); stroke: var(--ion-color-primary); stroke-width: 3; }
+.handle text { font-size: 15px; pointer-events: none; }

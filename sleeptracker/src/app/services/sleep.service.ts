@@ -90,6 +90,30 @@ export class SleepService {
 		await Preferences.set({ key: 'sleepiness', value: JSON.stringify(sleepiness) });
 	}
 
+	/* Removes an entry by id and saves; if saving fails the entry is put back and the error is rethrown. */
+	public async deleteEntry(entry:SleepData):Promise<void> {
+		const drop = (list:SleepData[]) => {
+			const i = list.findIndex(e => e.id === entry.id);
+			if (i >= 0) list.splice(i, 1);
+		};
+		drop(SleepService.AllSleepData);
+		drop(SleepService.AllOvernightData);
+		drop(SleepService.AllSleepinessData);
+		try {
+			await this.persist();
+		} catch (e) {
+			await this.restoreEntry(entry).catch(() => {});
+			throw e;
+		}
+	}
+
+	/* Puts a deleted entry back into its list and saves. */
+	public restoreEntry(entry:SleepData):Promise<void> {
+		return entry instanceof OvernightSleepData
+			? this.logOvernightData(entry)
+			: this.logSleepinessData(entry as StanfordSleepinessData);
+	}
+
 	public logOvernightData(sleepData:OvernightSleepData):Promise<void> {
 		SleepService.AllSleepData.push(sleepData);
 		SleepService.AllOvernightData.push(sleepData);

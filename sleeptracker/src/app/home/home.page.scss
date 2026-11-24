@@ -1,0 +1,50 @@
+ion-toolbar {
+  --background: var(--ion-color-primary);
+  --color: var(--ion-color-primary-contrast);
+}
+
+ion-card {
+  border-radius: 16px;
+}
+
+.emoji {
+  font-size: 56px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+ion-range {
+  --bar-height: 8px;
+  --bar-border-radius: 4px;
+  --knob-size: 28px;
+  min-height: 48px;
+}
+
+ion-button {
+  --border-radius: 12px;
+  min-height: 48px;
+}
+
+.summary {
+  background: var(--ion-color-primary);
+  color: var(--ion-color-primary-contrast);
+  p { margin: 4px 0 0; }
+}
+
+/* Rating badge: 1 (green) to 7 (red). */
+.badge {
+  display: inline-block;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+  color: #111;
+}
+.r1 { background: #86efac; }
+.r2 { background: #bef264; }
+.r3 { background: #fde047; }
+.r4 { background: #fcd34d; }
+.r5 { background: #fdba74; }
+.r6 { background: #fb923c; }
+.r7 { background: #f87171; }

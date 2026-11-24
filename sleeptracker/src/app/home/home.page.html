@@ -5,11 +5,22 @@
 </ion-header>
 
 <ion-content>
+  <ion-card class="summary">
+    <ion-card-content>
+      @if (summary) {
+        <strong>{{ summary }}</strong>
+      } @else {
+        Log last night to see your sleep here
+      }
+    </ion-card-content>
+  </ion-card>
+
   <ion-card>
     <ion-card-header>
       <ion-card-title>Log last night</ion-card-title>
     </ion-card-header>
     <ion-card-content>
+      <app-sleep-dial [(bedtime)]="bedtime" [(wakeTime)]="wakeTime"></app-sleep-dial>
       <ion-item>
         <ion-label>Went to bed</ion-label>
         <ion-datetime-button datetime="bedtime"></ion-datetime-button>
@@ -49,12 +60,16 @@
       <ion-card-title>How sleepy are you?</ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <ion-segment [value]="rating" (ionChange)="rating = $any($event.detail.value) ? +$any($event.detail.value) : null">
-        @for (n of scale; track n) {
-          <ion-segment-button [value]="n" style="min-height: 48px">{{ n }}</ion-segment-button>
-        }
-      </ion-segment>
-      <p>{{ rating ? rating + ' · ' + descriptions[rating] : 'Tap a number' }}</p>
+      <div class="emoji" aria-hidden="true">{{ rating ? emojis[rating] : '😶' }}</div>
+      <ion-range [min]="1" [max]="7" [step]="1" [snaps]="true" [ticks]="true" [pin]="true"
+        aria-label="Sleepiness from 1 (wide awake) to 7 (about to fall asleep)"
+        [value]="rating ?? 4" [style.--bar-background-active]="rating ? colors[rating] : 'transparent'"
+        [style.--knob-background]="rating ? colors[rating] : '#9ca3af'"
+        (ionInput)="rating = +$any($event.detail.value)">
+        <span slot="start">Awake</span>
+        <span slot="end">Sleepy</span>
+      </ion-range>
+      <p>{{ rating ? rating + ' · ' + descriptions[rating] : 'Slide to rate' }}</p>
 
       <ion-item>
         <ion-label>Felt this at</ion-label>
@@ -93,14 +108,19 @@
         <ion-note slot="end">No sleep logged yet</ion-note>
       }
     </ion-item>
-    <!-- temporary list; proper history comes in Phase 04 -->
     @for (n of overnight; track n.id) {
-      <ion-item>
-        <ion-label>
-          <h3>{{ n.dateString() }}</h3>
-          <p>{{ n.summaryString() }}</p>
-        </ion-label>
-      </ion-item>
+      <ion-item-sliding #slide>
+        <ion-item>
+          <ion-label>
+            <h3>{{ n.dateString() }}</h3>
+            <p>{{ n.summaryString() }}</p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" color="danger" aria-label="Delete night" (click)="deleteEntry(n, slide)">Delete</ion-button>
+        </ion-item>
+        <ion-item-options side="end">
+          <ion-item-option color="danger" (click)="deleteEntry(n, slide)">Delete</ion-item-option>
+        </ion-item-options>
+      </ion-item-sliding>
     }
 
     <ion-item>
@@ -110,13 +130,19 @@
       }
     </ion-item>
     @for (s of sleepiness; track s.id) {
-      <ion-item>
-        <ion-label>
-          <h3>{{ s.dateString() }}</h3>
-          <p>{{ s.summaryString() }}</p>
-        </ion-label>
-        <ion-note slot="end">{{ s.loggedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) }}</ion-note>
-      </ion-item>
+      <ion-item-sliding #slide>
+        <ion-item>
+          <span [class]="badge(s.loggedValue)" slot="start">{{ s.loggedValue }}</span>
+          <ion-label>
+            <h3>{{ s.dateString() }} · {{ s.loggedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) }}</h3>
+            <p>{{ s.summaryString() }}</p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" color="danger" aria-label="Delete rating" (click)="deleteEntry(s, slide)">Delete</ion-button>
+        </ion-item>
+        <ion-item-options side="end">
+          <ion-item-option color="danger" (click)="deleteEntry(s, slide)">Delete</ion-item-option>
+        </ion-item-options>
+      </ion-item-sliding>
     }
     }
   </ion-list>
